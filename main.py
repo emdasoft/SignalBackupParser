@@ -19,7 +19,7 @@ def get_result(data):
 
 def main():
     file_path = "signal-2021-11-19-12-38-24.backup"
-    pass_code = "486746075681940264135041361970"
+    pass_code = "486746075681940264135041361970x"
     get_base(file_path, pass_code)
 
 
