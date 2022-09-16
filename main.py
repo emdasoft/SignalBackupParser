@@ -3,14 +3,48 @@ import sqlite3
 import subprocess
 from tkinter import *
 from tkinter import filedialog, ttk
-
 import xlsxwriter as xlsxwriter
-
 import my_icon
 import tkinter.messagebox as mb
 
 
-def make_result():
+def get_data(row):
+    types = {'10485780': 'Входящее сообщение',
+             '10485783': 'Исходящее сообщение',
+             '2': 'Исходящий звонок',
+             '1': 'Входящий звонок',
+             '2097684': 'Сервисное сообщение',
+             '3': 'Пропущенный аудиозвонок',
+             '2097156': 'Сервисное сообщение',
+             '10': 'Входящий видеозвонок',
+             '11075604': 'Сервисное сообщение',
+             '14680084': 'Сервисное сообщение',
+             '14680087': 'Сервисное сообщение',
+             '7': 'Сервисное сообщение',
+             '8': 'Пропущенный видеозвонок',
+             }
+    sms_id = row[0]
+    address = row[1]
+    date = row[2]
+    date_sent = row[3]
+    if row[4] == 1:
+        read_state = 'Прочитанное'
+    else:
+        read_state = 'Непрочитанное'
+    direction = types[str(row[5])]
+    body = row[6]
+    server_guid = row[7]
+    recipient_phone = row[8]
+    recipient_system_display_name = row[9]
+    recipient_signal_profile_name = row[10]
+    data = (
+        sms_id, address, recipient_system_display_name, recipient_signal_profile_name, recipient_phone, date,
+        date_sent, read_state, direction, body, server_guid
+    )
+    return data
+
+
+def make_result(base):
     workbook = xlsxwriter.Workbook('out/Signal.xlsx')
     worksheet_contacts = workbook.add_worksheet('Контакты')
 
@@ -24,6 +58,8 @@ def make_result():
     worksheet_messages.set_column('K:K', 34)
     bold = workbook.add_format({'bold': True, 'bg_color': '#c0c0c0', 'align': 'center',
                                 'font_name': 'Arial', 'font_size': '10'})
+    regular = workbook.add_format({'bold': False, 'font_name': 'Arial', 'font_size': '10', 'text_wrap': 1,
+                                   'valign': 'top'})
     worksheet_messages.write('A1', 'ID сообщения', bold)
     worksheet_messages.write('B1', 'ID абнента', bold)
     worksheet_messages.write('C1', 'Имя абонента', bold)
@@ -37,6 +73,29 @@ def make_result():
     worksheet_messages.write('K1', 'GUID', bold)
     worksheet_messages.autofilter('A1:K1')
     worksheet_messages.freeze_panes(1, 0)
+
+    try:
+        conn = sqlite3.connect(base)
+        c = conn.cursor()
+        c.execute("SELECT sms._id, sms.address, sms.date, sms.date_sent, sms.read, sms.type, sms.body, "
+                  "sms.server_guid, recipient.phone, recipient.system_display_name, recipient.signal_profile_name "
+                  "FROM sms INNER JOIN recipient ON recipient._id = sms.address")
+        rows = c.fetchall()
+        row_xlsx = 1
+        for row in rows:
+            col = 0
+            for item in (get_data(row)):
+                worksheet_messages.write(row_xlsx, col, item, regular)
+                col += 1
+            row_xlsx += 1
+        # conn.commit()
+        conn.close()
+        msg = "Анализ резервной копии произведен успешно! Отчет сохранен в каталог 'out'"
+        mb.showinfo("Готово!", msg)
+    except Exception as e:
+        msg = "Возникла ошибка по причине: " + str(e) + "\nУбедитесь в корректности введенных данных"
+        mb.showerror("Ошибка", msg)
+
     workbook.close()
 
 
@@ -65,25 +124,6 @@ def main():
             msg = "Ошибка вызвана по причине: " + str(e) + "\nУбедитесь в корректности введенных данных"
             mb.showerror("Ошибка", msg)
         return "tmp\\database.sqlite"
-
-    def get_data(base):
-        try:
-            conn = sqlite3.connect(base)
-            c = conn.cursor()
-            c.execute("SELECT sms._id, sms.address, sms.date, sms.date_sent, sms.read, sms.type, sms.body, "
-                      "sms.server_guid, recipient.phone, recipient.system_display_name, recipient.signal_profile_name "
-                      "FROM sms INNER JOIN recipient ON recipient._id = sms.address")
-            rows = c.fetchall()
-            for row in rows:
-                print(row)
-            # conn.commit()
-            conn.close()
-            msg = "Анализ резервной копии произведен успешно! Отчет сохранен в каталог 'out'"
-            mb.showinfo("Готово!", msg)
-            make_result()
-        except Exception as e:
-            msg = "Возникла ошибка по причине: " + str(e) + "\nУбедитесь в корректности введенных данных"
-            mb.showerror("Ошибка", msg)
 
     try:
         path_out = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'out/Signal.xlsx')
@@ -120,7 +160,7 @@ def main():
     entry_pass.grid(row=4, column=0, columnspan=3, padx=5, pady=5)
 
     btn_2 = Button(root, text='Анализ', width=15, height=1, bg='#138eec', fg='white', font='arial 14',
-                   command=lambda: get_data(get_base()))
+                   command=lambda: make_result(get_base()))
     btn_2.grid(row=5, column=0, columnspan=3, padx=10, pady=(40, 0))
     m_lbl = ttk.Label(root, text='© VKukh', font='arial 7', foreground='#999999', justify=LEFT)
     m_lbl.grid(row=6, column=0, columnspan=3)
