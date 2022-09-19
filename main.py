@@ -4,7 +4,7 @@ import subprocess
 from tkinter import *
 from tkinter import filedialog, ttk
 import xlsxwriter as xlsxwriter
-import my_icon
+import my_icon, my_logo
 import tkinter.messagebox as mb
 import datetime
 
@@ -219,8 +219,9 @@ def main():
     root.title('SignalBackupParser 0.9b')
     root.geometry('540x480')
     icon = my_icon.set_icon()
+    logo = my_logo.set_logo()
     root.tk.call('wm', 'iconphoto', root._w, PhotoImage(data=icon))
-    bg = PhotoImage(file="logo.png")
+    bg = PhotoImage(data=logo)
     root.resizable(False, False)
     logo_label = Label(root, image=bg)
     logo_label.grid(row=0, column=0, columnspan=3)
